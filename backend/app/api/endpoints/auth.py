@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.core.security import create_access_token
@@ -8,7 +8,6 @@ from app.core.config import settings
 from app.api.deps import get_current_user
 from requests_oauthlib import OAuth2Session
 import requests
-from urllib.parse import urlencode
 import os
 
 router = APIRouter()
@@ -24,13 +23,14 @@ token_url = "https://accounts.spotify.com/api/token"
 
 scope = [
     "user-read-email",
-    "playlist-read-collaborative"
+    "playlist-read-collaborative",
+    "user-top-read"
 ]
 
 @router.get("/login")
 async def login():
     spotify = OAuth2Session(client_id, scope=scope, redirect_uri=redirect_uri)
-    authorization_url = spotify.authorization_url(authorization_base_url)
+    authorization_url, _ = spotify.authorization_url(authorization_base_url)
     return RedirectResponse(authorization_url)
 
 @router.get("/callback")
