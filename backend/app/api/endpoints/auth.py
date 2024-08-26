@@ -9,6 +9,7 @@ from app.api.deps import get_current_user
 from requests_oauthlib import OAuth2Session
 import requests
 import os
+from urllib.parse import urlencode
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 client_id = settings.SPOTIFY_CLIENT_ID
 client_secret = settings.SPOTIFY_CLIENT_SECRET
 redirect_uri = 'http://127.0.0.1:8000/auth/callback'
+frontend_redirect_uri = 'http://localhost:3000/callback'
 authorization_base_url = "https://accounts.spotify.com/authorize"
 token_url = "https://accounts.spotify.com/api/token"
 
@@ -36,23 +38,21 @@ async def login():
 @router.get("/callback")
 async def callback(request: Request, db: Session = Depends(get_db)):
     spotify = OAuth2Session(client_id, scope=scope, redirect_uri=redirect_uri)
-    
     token = spotify.fetch_token(
         token_url,
         client_secret=client_secret,
         authorization_response=str(request.url)
     )
-    
     r = spotify.get('https://api.spotify.com/v1/me')
     user_info = r.json()
-
+    
     user = db.query(User).filter(User.email == user_info['email']).first()
     if not user:
         user = User(email=user_info['email'])
         db.add(user)
         db.commit()
         db.refresh(user)
-
+    
     spotify_data = db.query(UserSpotifyData).filter(UserSpotifyData.user_id == user.id).first()
     if not spotify_data:
         spotify_data = UserSpotifyData(
@@ -67,9 +67,11 @@ async def callback(request: Request, db: Session = Depends(get_db)):
         if 'refresh_token' in token:
             spotify_data.refresh_token = token['refresh_token']
     db.commit()
-
+    
     access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    
+    params = urlencode({'access_token': access_token})
+    return RedirectResponse(url=f"{frontend_redirect_uri}?{params}")
 
 @router.post("/refresh")
 def refresh_token(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
