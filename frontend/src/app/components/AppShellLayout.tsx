@@ -4,7 +4,8 @@ import { useDisclosure } from '@mantine/hooks';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { IconLogin2, IconLogout2 } from '@tabler/icons-react';
+import { IconLogin2, IconLogout2, IconTimeline } from '@tabler/icons-react';
+import Link from 'next/link'
 
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
@@ -60,6 +61,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       </AppShell.Header>
       <AppShell.Navbar p="md">
         {(isAuthenticated ? (
+          <>
             <UnstyledButton onClick={handleSignOut} mt="sm">
               <Group>
                 <ThemeIcon color="red" variant="light">
@@ -68,10 +70,21 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
                 Sign Out
               </Group>
             </UnstyledButton>
+            <Link href="/recommendations" passHref>
+            <UnstyledButton component="a" mt="sm">
+              <Group>
+                <ThemeIcon color="cyan" variant="light">
+                  <IconTimeline size="1rem" />
+                </ThemeIcon>
+                Recommendations
+              </Group>
+            </UnstyledButton>
+          </Link>
+          </>
           ) : (
             <UnstyledButton onClick={handleSignIn} mt="sm">
               <Group>
-                <ThemeIcon color="blue" variant="light">
+                <ThemeIcon color="cyan" variant="light">
                   <IconLogin2 size="1rem" />
                 </ThemeIcon>
                 Sign In

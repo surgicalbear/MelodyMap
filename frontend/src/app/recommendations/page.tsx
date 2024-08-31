@@ -1,16 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { AuthGuard } from "../components/AuthGuard"
-import { Card, Text, Group, Stack, Avatar, Title, LoadingOverlay, Button, Select, Container } from '@mantine/core'
+import { Card, Text, Group, Stack, Avatar, Title, LoadingOverlay, Select, Container } from '@mantine/core'
 import { authFetch } from '../utils/authFetch'
-import Link from 'next/link'
-
-interface Artist {
-  name: string;
-  images: { url: string }[];
-}
 
 interface Track {
+  id: string;
   name: string;
   artists: { name: string }[];
   album: { images: { url: string }[] };
@@ -27,52 +22,56 @@ const timeRanges = [
   { value: 'long_term', label: '1 Year' },
 ];
 
-export default function Home() {
-  const [topArtists, setTopArtists] = useState<Artist[]>([])
-  const [topTracks, setTopTracks] = useState<Track[]>([])
+const limitOptions = [
+  { value: '5', label: '5 tracks' },
+  { value: '10', label: '10 tracks' },
+  { value: '20', label: '20 tracks' },
+  { value: '50', label: '50 tracks' },
+];
+
+export default function Recommendations() {
+  const [recommendations, setRecommendations] = useState<Track[]>([])
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [timeRange, setTimeRange] = useState('medium_term')
+  const [limit, setLimit] = useState('10')
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        const [artistsRes, tracksRes, profileRes] = await Promise.all([
-          authFetch(`http://localhost:8000/spotify/top/artists?time_range=${timeRange}&limit=15`),
-          authFetch(`http://localhost:8000/spotify/top/tracks?time_range=${timeRange}&limit=15`),
+        const [recommendationsRes, profileRes] = await Promise.all([
+          authFetch(`http://localhost:8000/spotify/recommendations?time_range=${timeRange}&limit=${limit}`),
           authFetch('http://localhost:8000/spotify/me')
         ]);
 
-        if (!artistsRes.ok || !tracksRes.ok || !profileRes.ok) {
+        if (!recommendationsRes.ok || !profileRes.ok) {
           throw new Error('One or more requests failed');
         }
 
-        const artistsData = await artistsRes.json();
-        const tracksData = await tracksRes.json();
+        const recommendationsData = await recommendationsRes.json();
         const profileData = await profileRes.json();
 
-        setTopArtists(artistsData.items || []);
-        setTopTracks(tracksData.items || []);
+        setRecommendations(recommendationsData.recommendations || []);
         setUserProfile(profileData);
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Failed to fetch data. Please try again later.');
+        console.error('Error fetching data:', error)
+        setError('Failed to fetch data. Please try again later.')
       } finally {
         setIsLoading(false)
       }
-    };
+    }
 
-    fetchData();
-  }, [timeRange]);
+    fetchData()
+  }, [timeRange, limit])
 
   if (error) {
     return (
       <AuthGuard>
         <Text c="red">{error}</Text>
       </AuthGuard>
-    );
+    )
   }
 
   return (
@@ -80,47 +79,41 @@ export default function Home() {
       <Container size="sm">
         <Stack gap="xl" pos="relative">
           <LoadingOverlay visible={isLoading} />
+          
           {userProfile && (
             <Group>
               <Avatar src={userProfile.images?.[0]?.url} size="xl" radius="xl" />
               <Title order={2}>Welcome, {userProfile.display_name}</Title>
             </Group>
           )}
-
-          <Select
-            label="Select Time Range"
-            value={timeRange}
-            onChange={(value) => setTimeRange(value || 'medium_term')}
-            data={timeRanges}
-          />
-
-          <Card withBorder>
-            <Title order={3} mb="md">Your Top Artists</Title>
-            <Stack gap="sm">
-              {topArtists.map((artist, index) => (
-                <Group key={index}>
-                  <Avatar src={artist.images[0]?.url} radius="xl" />
-                  <Text>{artist.name}</Text>
-                </Group>
-              ))}
-            </Stack>
-          </Card>
+          
+          <Title order={3}>Recommended Tracks</Title>
+          
+          <Group grow>
+            <Select
+              label="Seed Tracks Time Range"
+              value={timeRange}
+              onChange={(value) => setTimeRange(value || 'medium_term')}
+              data={timeRanges}
+            />
+            <Select
+              label="Number of Recommendations"
+              value={limit}
+              onChange={(value) => setLimit(value || '10')}
+              data={limitOptions}
+            />
+          </Group>
 
           <Card withBorder>
-            <Title order={3} mb="md">Your Top Tracks</Title>
             <Stack gap="sm">
-              {topTracks.map((track, index) => (
-                <Group key={index}>
+              {recommendations.map((track) => (
+                <Group key={track.id}>
                   <Avatar src={track.album.images[0]?.url} radius="xl" />
                   <Text>{track.name} - {track.artists[0]?.name}</Text>
                 </Group>
               ))}
             </Stack>
           </Card>
-
-          <Link href="/recommendations" passHref>
-            <Button component="a">View Recommendations</Button>
-          </Link>
         </Stack>
       </Container>
     </AuthGuard>
